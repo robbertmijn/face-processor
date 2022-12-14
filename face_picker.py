@@ -9,7 +9,7 @@ from face_processor import face_processor as fp
 import glob
 import os
 
-directory = 'Face Annotations/Images and Annotations'
+directory = 'test_images'
 outdir = "processed_auto"
 
 if not os.path.exists(outdir):
