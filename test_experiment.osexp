@@ -1,0 +1,128 @@
+---
+API: 2.1
+OpenSesame: 3.3.14
+Platform: posix
+---
+set width 1024
+set uniform_coordinates yes
+set title "New experiment"
+set subject_parity even
+set subject_nr 0
+set start experiment
+set sound_sample_size -16
+set sound_freq 48000
+set sound_channels 2
+set sound_buf_size 1024
+set sampler_backend psycho
+set round_decimals 2
+set mouse_backend psycho
+set keyboard_backend psycho
+set height 768
+set fullscreen no
+set form_clicks no
+set foreground white
+set font_underline no
+set font_size 18
+set font_italic no
+set font_family mono
+set font_bold no
+set experiment_path "/Users/robbertmijn/Documents/projecten_local/10K Faces/face-processor"
+set disable_garbage_collection yes
+set description "The main experiment item"
+set coordinates uniform
+set compensation 0
+set color_backend psycho
+set clock_backend psycho
+set canvas_backend psycho
+set background "#808080"
+
+define sequence experiment
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run getting_started always
+	run new_inline_script always
+	run new_loop always
+	run welcome always
+
+define notepad getting_started
+	__note__
+	Welcome to OpenSesame 3.3 "Lentiform Loewenfeld"!
+	If you are new to OpenSesame, it is a good idea to follow one of the tutorials,
+	which can be found on the documentation site:
+	- <http://osdoc.cogsci.nl/>
+	You can also check out the examples. These can be opened via:
+	- Menu -> Tools -> Example experiments.
+	And feel free to ask for help on the forum:
+	- <http://forum.cogsci.nl/>
+	Have fun with OpenSesame!
+	__end__
+	set description "A simple notepad to document your experiment. This plug-in does nothing."
+
+define RSVP_plugin new_RSVP_plugin
+	set description "Add an RSVP to your experiment"
+	set _targets_shuffle no
+	set _targets "[targets]"
+	set _target_positions "1;2"
+	set _stimdur 125
+	set _ntargets 2
+	set _ndistractors 16
+	set _mode images
+	set _distractors_shuffle no
+	set _distractors "[distractors]"
+
+define inline_script new_inline_script
+	set description "Executes Python code"
+	set _run ""
+	___prepare__
+	# var.targets = ";".join(["test_images/{}.jpg".format(i) for i in [1, 2]])
+	# var.distractors = ";".join(["test_images/{}.jpg".format(i) for i in range(3,19)])
+	
+	# var.targets = ";".join(["proc1/{}.jpg".format(i) for i in [1, 2]])
+	# var.distractors = ";".join(["proc1/{}.jpg".format(i) for i in range(3,19)])
+	
+	var.targets = ";".join(["proc2/{}.jpg".format(i) for i in [1, 2]])
+	var.distractors = ";".join(["proc2/{}.jpg".format(i) for i in range(3,19)])
+	__end__
+
+define keyboard_response new_keyboard_response
+	set timeout infinite
+	set flush yes
+	set event_type keypress
+	set duration keypress
+	set description "Collects keyboard responses"
+
+define loop new_loop
+	set source table
+	set repeat 6
+	set order random
+	set description "Repeatedly runs another item"
+	set cycles 1
+	set continuous no
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 empty_column ""
+	run new_sequence
+
+define sequence new_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run new_keyboard_response always
+	run new_sketchpad_1 always
+	run new_RSVP_plugin always
+	run new_sketchpad always
+
+define sketchpad new_sketchpad
+	set duration 500
+	set description "Displays stimuli"
+
+define sketchpad new_sketchpad_1
+	set duration 500
+	set description "Displays stimuli"
+
+define sketchpad welcome
+	set start_response_interval no
+	set reset_variables no
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=serif font_italic=no font_size=32 html=yes show_if=always text="OpenSesame 3.3 <i>Lentiform Loewenfeld</i>" x=0 y=0 z_index=0
+

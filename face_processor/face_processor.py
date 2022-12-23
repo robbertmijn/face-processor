@@ -23,7 +23,7 @@ import os
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(os.path.join("face_processor", "shape_predictor_68_face_landmarks.dat"))
 
-def process_face(inpath, outdir):
+def process_face(inpath, outdir, outname):
     
     # Get the image from file
     img = cv2.imread(inpath)
@@ -55,12 +55,10 @@ def process_face(inpath, outdir):
     img = transform_image(img, right_eye, left_eye, nose, face_rect)
     
     if img is not None:
-        outpath = os.path.join(outdir, "{}".format(os.path.basename(inpath)))
+        outpath = os.path.join(outdir, "{}.jpg".format(outname))
         imsaved = cv2.imwrite(outpath, img)
-        print(outpath)
         if imsaved:
-            pass
-            # print("saving {}".format(outpath))
+            print("saving {}".format(outpath))
         else:
             print("saving error")
     else:
