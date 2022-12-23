@@ -5,22 +5,12 @@ Created on Wed Dec  7 17:20:06 2022
 
 @author: robbertmijn
 
-
-Lines 1-8: Left eyebrow
-Lines 9-24: Face shape
-Lines 25-32: Right eyebrow
-Lines 33-45: Nose
-Lines 46-53: Left eye
-Lines 54-61: Right eye
-Lines 62-70: Upper lip
-Lines 71-77: Bottom lip
-
 dlibs facial landmarks are these:
 43-48 left eye
 37-42 right eye
 32-36 nose
 
-face landmarks are included, downloaded from http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2
+dlibs face landmarks are included, downloaded from http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2
 """
 
 import imutils
@@ -29,15 +19,15 @@ import cv2
 import dlib
 import os
 
+# load the face detector and shape predictor
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor(os.path.join("face_processor", "shape_predictor_68_face_landmarks.dat"))
+
 def process_face(inpath, outdir):
     
     # Get the image from file
     img = cv2.imread(inpath)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # load the face detector and shape predictor
-    detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor(os.path.join("face_processor", "shape_predictor_68_face_landmarks.dat"))
     
     # detect faces
     dets = detector(img, 1)
@@ -53,16 +43,24 @@ def process_face(inpath, outdir):
     left_eye = [landmarks[42:47, 0].mean(), landmarks[42:47, 1].mean()]
     right_eye = [landmarks[36:41, 0].mean(), landmarks[36:41, 1].mean()]
     nose = [landmarks[27:35, 0].mean(), landmarks[27:35, 1].mean()]
+    face_rect = dets[0]
+    
+    # # add landmarks
+    # for lm in landmarks:        
+    #     img = cv2.circle(img, lm, 2, 255, -1)
+    #     img = cv2.rectangle(img, (dets[0].left(), dets[0].top()), 
+    #                         (dets[0].right(), dets[0].bottom()), 255)
     
     # Process the face image
-    img = transform_image(img, right_eye, left_eye, nose)
+    img = transform_image(img, right_eye, left_eye, nose, face_rect)
     
     if img is not None:
-        outpath = os.path.join(outdir, "processed_{}".format(os.path.basename(inpath)))
+        outpath = os.path.join(outdir, "{}".format(os.path.basename(inpath)))
         imsaved = cv2.imwrite(outpath, img)
         print(outpath)
         if imsaved:
-            print("saving {}".format(outpath))
+            pass
+            # print("saving {}".format(outpath))
         else:
             print("saving error")
     else:
@@ -70,7 +68,7 @@ def process_face(inpath, outdir):
         
     return img
 
-def transform_image(img, right_eye, left_eye, nose):
+def transform_image(img, right_eye, left_eye, nose, face_rect):
     
     # Hard coded image dimensions
     W = 300
@@ -79,23 +77,15 @@ def transform_image(img, right_eye, left_eye, nose):
     # ignore too large images
     if img.shape[0] > H:
         return None
-    
-    # Specify mask, conveniently an ellipse the size of the original image
-    mask = np.zeros_like(img)
-    mask = cv2.ellipse(mask, 
-                       (int(img.shape[1]/2), int(img.shape[0]/2)), 
-                       (int(img.shape[1]/2) - 3, int(img.shape[0]/2) - 3),
-            0, 0, 360, (255, 255, 255), -1)
-    
-    # Mask the image
-    img = np.bitwise_and(img, mask)
-    
+        
     # Determine where to shift the image to based on the area between the eyes and nose
     x_shift = int(img.shape[1]/2 - np.array([right_eye[0], left_eye[0], nose[0]]).mean())
     y_shift = int(img.shape[0]/2 - np.array([right_eye[1], left_eye[1], nose[1]]).mean())
     
     # Determine the rotation to get the eyes on the same level horizontally
     rotation = np.degrees(np.arctan((right_eye[1] - left_eye[1]) / (right_eye[0] - left_eye[0])))
+    
+    # TODO size transformation
     
     # Determine how much padding is required to get the desired size of the image
     pad_x = int((W - img.shape[1])/2)
@@ -112,21 +102,31 @@ def transform_image(img, right_eye, left_eye, nose):
         return im
     
     new_img = do_transform(img)
-    # Turn mask into logical array (127 as "threshold")
-    new_mask = do_transform(mask) < 127
-    # new_mask = new_mask < 127
     
-    # Reduce contrast by "40"
-    contrast = -40
-    new_img[~new_mask] = new_img[~new_mask] * (contrast/127+1) - contrast
-    new_img = np.clip(new_img, 0, 255)
+    # Mask the image
+    # TODO mask is now hard coded to be 90 by 70, make this variable
+    mask = np.zeros_like(new_img)
+    mask = cv2.ellipse(mask, 
+                        (int(W/2), int(H/2)), 
+                        (70, 100),
+            0, 0, 360, (255, 255, 255), -1)
+    new_img = np.bitwise_and(new_img, mask)
+     
+    # Reduce contrast by "50"
+    # TODO use equalizeHist or CLAHE to equalize contrast
+    contrast = -50
+    new_img[mask > 127] = new_img[mask > 127] * (contrast/127+1) - contrast
+    new_img[mask > 127] = np.clip(new_img[mask > 127], 0, 255)
     
     # On average, each pixel should be 127 (gray: our luminosity aim)
-    lum_aim = np.sum([~new_mask]) * 127
-    new_img[~new_mask] = new_img[~new_mask] + (lum_aim - new_img[~new_mask].sum()) / np.sum([~new_mask])
+    lum_aim = np.sum(mask) * 127
+    new_img[mask > 127] = new_img[mask > 127] + (lum_aim - new_img[mask > 127].sum()) / np.sum([mask > 127])
+    
+    # # Output mean luminance and standard deviation (metric for how much contrast there is)
+    # print("after, std {}, mean {}".format(new_img[mask > 127].std(), new_img[mask > 127].mean()))
     
     # Turn the background gray (127)
-    new_img[new_mask] = 127
+    new_img[mask < 127] = 127
     
     # if we had to shift on the horizontal axis too much, we discard
     if abs(x_shift) > 32:
