@@ -99,19 +99,28 @@ define sequence block_sequence
 	run block_instructions always
 	run block_loop always
 
+define sketchpad end
+	set start_response_interval no
+	set reset_variables no
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=serif font_italic=no font_size=32 html=yes show_if=always text="the end" x=0 y=0 z_index=0
+
 define sequence experiment
 	set flush_keyboard yes
 	set description "Runs a number of items in sequence"
 	run getting_started always
+	run pygaze_init always
+	run init_evtx always
 	run init_vars always
 	run experimental_loop always
-	run welcome always
+	run end always
 
 define loop experimental_loop
 	set source_file ""
 	set source table
 	set repeat 1
-	set order random
+	set order sequential
 	set description "Repeatedly runs another item"
 	set cycles 4
 	set continuous no
@@ -160,6 +169,13 @@ define notepad getting_started
 	__end__
 	set description "A simple notepad to document your experiment. This plug-in does nothing."
 
+define EVTxx init_evtx
+	set description "Allows setting or pulsing values of pins on the output port of various EventExchanger devices"
+	set _value -1
+	set _productName DUMMY
+	set _outputMode "Pulse Output Lines"
+	set _duration 500
+
 define inline_script init_trial
 	set description "Executes Python code"
 	set _run ""
@@ -185,29 +201,95 @@ define inline_script init_vars
 	set description "Executes Python code"
 	set _run ""
 	___prepare__
-	females = ["processed_auto/f_{}.jpg".format(i) for i in range(531)] * 5
-	males = ["processed_auto/m_{}.jpg".format(i) for i in range(377)] * 5
+	females = ["faces/f_{}.jpg".format(i) for i in range(531)] * 5
+	males = ["faces/m_{}.jpg".format(i) for i in range(377)] * 5
+	
+	fixation_trigger = 1
+	rsvp_trigger = 2
 	__end__
 
 define logger logger
 	set description "Logs experimental data"
 	set auto_log yes
 
+define pygaze_drift_correct pygaze_drift_correct
+	set ypos 0
+	set xpos 0
+	set target_style default
+	set target_color "[foreground]"
+	set fixation_triggered no
+	set draw_target yes
+	set description "Perform eye-tracker drift correction"
+
+define pygaze_init pygaze_init
+	set tracker_type "Simple dummy"
+	set tobiiglasses_udpport 49152
+	set tobiiglasses_address "192.168.71.50"
+	set smi_send_port 4444
+	set smi_recv_port 5555
+	set smi_ip "127.0.0.1"
+	set sacc_vel_thr 35
+	set sacc_acc_thr 9500
+	set eyelink_pupil_size_mode area
+	set eyelink_force_drift_correct yes
+	set description "Initialize and calibrate eye tracker"
+	set calibrate yes
+	set calbeep yes
+	set alea_api_key "Contact Alea for an API key"
+	set alea_animated_calibration no
+	set _logfile automatic
+
+define pygaze_log pygaze_log
+	set throttle 2
+	set msg ""
+	set description "Writes information to the eye-tracker logfile"
+	set auto_log yes
+
+define pygaze_start_recording pygaze_start_recording
+	set status_msg "start_trial [trial_number]"
+	set description "Puts the eye tracker into recording mode"
+
+define pygaze_stop_recording pygaze_stop_recording
+	set status_msg stop_trial
+	set description "Stops recording of eye tracking data"
+
+define inline_script start_fixation
+	set description "Executes Python code"
+	___run__
+	eyetracker.log(f'start_phase {fixation_trigger}')
+	EE.PulseLines(fixation, 10)
+	__end__
+	set _prepare ""
+
+define inline_script start_response
+	set description "Executes Python code"
+	set _run "eyetracker.log(f'end_phase {rsvp_trigger}')"
+	set _prepare ""
+
+define inline_script start_rsvp
+	set description "Executes Python code"
+	___run__
+	eyetracker.log(f'end_phase {fixation_trigger}')
+	eyetracker.log(f'start_phase {rsvp_trigger}')
+	EE.PulseLines(rsvp, 10)
+	__end__
+	set _prepare ""
+
 define sequence trial_sequence
 	set flush_keyboard yes
 	set description "Runs a number of items in sequence"
 	run init_trial always
+	run pygaze_drift_correct always
+	run pygaze_start_recording always
+	run start_fixation always
 	run fixation always
+	run start_rsvp always
 	run RSVP always
+	run start_response always
+	run pygaze_stop_recording always
 	run ask_response always
 	run get_response always
 	run feedback always
+	run pygaze_log always
 	run logger always
-
-define sketchpad welcome
-	set start_response_interval no
-	set reset_variables no
-	set duration keypress
-	set description "Displays stimuli"
-	draw textline center=1 color=white font_bold=no font_family=serif font_italic=no font_size=32 html=yes show_if=always text="OpenSesame 3.3 <i>Lentiform Loewenfeld</i>" x=0 y=0 z_index=0
 
