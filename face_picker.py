@@ -74,3 +74,10 @@ for path in glob.glob(os.path.join(probes_dir, "*.jpg")):
     img = fp.process_face(path, outdir_probes, outname)
     if img is not None:
         i += 1
+        
+#%% Process images without faces
+
+img = fp.process_face("probe_1_raw.jpg", ".", "probe_1.jpg")
+
+
+
