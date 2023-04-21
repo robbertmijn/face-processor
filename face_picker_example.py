@@ -8,6 +8,7 @@ Created on Wed Dec  7 17:20:06 2022
 
 from face_processor import face_processor as fp
 import os
+import shutil
 from datamatrix import io, operations as ops
 import glob
 
@@ -35,49 +36,58 @@ dm["Gender"] = ["m" if x == 1 else "f" for x in dm["Gender"] ]
 # get subset based on attributes from csv
 subset = (dm["Facial hair?"] == 0) & (dm["Face direction?"] == 1) & (dm["Image quality"] > 2) & (dm["Age"] < 4) & (dm["Age"] > 2) & (dm["Emotion?"] == {0, 1})
 
-#%% Process the faces from the subset we just created and store them
+# Process the faces from the subset we just created and store them, also copy the original
+faces_dir = "/Users/robbertmijn/Documents/projecten_local/10K Faces/10k US Adult Faces Database/Face Images" # This is where I have them stored
+outdir_processed = "../processed/distractors"
+outdir_original = "../original/distractors"
 
-faces_dir = "../10k US Adult Faces Database/Face Images" # This is where I have them stored
-outdir_faces = "faces"
-
-# create directories if needed
-if not os.path.exists(outdir_faces):
-    os.makedirs(outdir_faces)
-else:
-    pass
+try:
+   os.makedirs(outdir_processed)
+   os.makedirs(outdir_original)
+except FileExistsError:
+   # directory already exists
+   pass
 
 # go over the list of subset images and create new images (split for gender, which we need for our experiment)
 for g, gdm in ops.split(subset.Gender):
     i = 0
-    for row in gdm:      
+    for row in gdm:
         path = os.path.join(faces_dir, row.Filename)
+
+        # copy the original for reference
+        shutil.copy2(path, outdir_original)
+
+        # determine the new filename based on sex and (a new) id
         outname = "{}_{}".format(g, i)
         print("Loading {}, ({})".format(path, i))
+
+        # process and save
         img = fp.process_face(path, outdir_faces, outname)
+
+        # advance the ID
         if img is not None:
             i += 1
             
-#%% Process faces that are stored separately in a directory (e.g., probes)
+# # Process faces that are stored separately in a directory (e.g., probes)
+# folder_in = "test_images"
+# folder_out = "test_images"
 
-probes_dir = "probes_raw"
-outdir_probes = "probes"
+# if not os.path.exists(folder_out):
+#     os.makedirs(folder_out)
+# else:
+#     pass
 
-if not os.path.exists(outdir_probes):
-    os.makedirs(outdir_probes)
-else:
-    pass
-
-i = 0
-for path in glob.glob(os.path.join(probes_dir, "*.jpg")):
-    outname = "probe_{}".format(i)
-    print("Loading {}, ({})".format(path, i))
-    img = fp.process_face(path, outdir_probes, outname)
-    if img is not None:
-        i += 1
+# i = 0
+# for path in glob.glob(os.path.join(folder_in, "*.jpg")):
+#     outname = "{}_new".format(os.path.splitext(os.path.basename(path))[0])
+#     print("Loading {}, ({})".format(path, i))
+#     img = fp.process_face(path, folder_out, outname)
+#     if img is not None:
+#         i += 1
         
-#%% Process images without faces
+# #%% Process images without faces
 
-img = fp.process_face("probe_1_raw.jpg", ".", "probe_1.jpg")
+# img = fp.process_face("probe_1_raw.jpg", ".", "probe_1.jpg")
 
 
 
